@@ -47,7 +47,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         super().__init__(*args, **kwargs)
         
         if "username" in self.fields:
-            self.fields.username.pop("username")
+            self.fields.pop("username")
 
     def validate(self, attrs):
         email = attrs.get("email")
