@@ -11,6 +11,13 @@ class QuizListCreateView(generics.ListCreateAPIView):
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        """
+        Wird aufgerufen, wenn ein neues Quiz per POST erstellt wird.
+        """
+        quiz = serializer.save()
+
+        return quiz
 
 
 

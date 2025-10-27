@@ -118,7 +118,7 @@ def generate_quiz_with_gemini(transcript: str) -> dict:
 
 def generate_quiz_from_video(quiz):
     # 1️⃣ Audio laden
-    result = download_audio_from_url(quiz.video_url)
+    result = download_audio_from_url(quiz.url)
     if not result["success"]:
         quiz.title = "Fehler beim Download"
         quiz.save()
