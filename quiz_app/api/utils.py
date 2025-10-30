@@ -4,37 +4,114 @@ import whisper
 from django.conf import settings
 from google import genai
 import json
-
+import subprocess
+ 
+from core.settings import YDL_BASE_OPTS
 from quiz_app.models import Question
 
 
-def download_audio_from_url(url: str, output_dir: str = "/tmp") -> dict:
+# def download_audio_from_url(url: str, output_dir: str = "quiz_app/media", quiz_id: int = None) -> dict:
+#     """
+#     Lädt Audio über yt-dlp herunter und gibt Metadaten zurück.
+    
+#     Args:
+#         url (str): Die Video-URL.
+#         output_dir (str): Zielverzeichnis (default: quiz_app/media).
+        
+#     Returns:
+#         dict: Enthält 'filepath', 'title' und 'success' (bool).
+#     """
+#     if not url:
+#         return {"success": False, "error": "No URL provided."}
+
+#     # Sicherstellen, dass der Ordner existiert
+#     os.makedirs(output_dir, exist_ok=True)
+
+#     # Dynamisches Ausgabeformat
+#     filename = f"quiz_{quiz_id or 'temp'}_%(id)s.%(ext)s"
+#     outtmpl = os.path.join(output_dir, filename)
+
+#     # yt-dlp Optionen zusammenbauen
+#     ydl_opts = {**settings.YDL_BASE_OPTS, "outtmpl": outtmpl}
+
+#     try:
+#         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+#             info = ydl.extract_info(url, download=True)
+#             filepath = ydl.prepare_filename(info)
+
+#         return {
+#             "success": True,
+#             "filepath": filepath,
+#             "title": info.get("title"),
+#         }
+
+#     except Exception as e:
+#         return {"success": False, "error": str(e)}def download_audio_from_url(url: str, output_dir: str = "quiz_app/media", quiz_id: int = None) -> dict:
+#     """
+#     Lädt Audio über yt-dlp herunter und gibt Metadaten zurück.
+    
+#     Args:
+#         url (str): Die Video-URL.
+#         output_dir (str): Zielverzeichnis (default: quiz_app/media).
+        
+#     Returns:
+#         dict: Enthält 'filepath', 'title' und 'success' (bool).
+#     """
+#     if not url:
+#         return {"success": False, "error": "No URL provided."}
+
+#     # Sicherstellen, dass der Ordner existiert
+#     os.makedirs(output_dir, exist_ok=True)
+
+#     # Dynamisches Ausgabeformat
+#     filename = f"quiz_{quiz_id or 'temp'}_%(id)s.%(ext)s"
+#     outtmpl = os.path.join(output_dir, filename)
+
+#     # yt-dlp Optionen zusammenbauen
+#     ydl_opts = {**settings.YDL_BASE_OPTS, "outtmpl": outtmpl}
+
+#     try:
+#         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+#             info = ydl.extract_info(url, download=True)
+#             filepath = ydl.prepare_filename(info)
+
+#         return {
+#             "success": True,
+#             "filepath": filepath,
+#             "title": info.get("title"),
+#         }
+
+#     except Exception as e:
+#         return {"success": False, "error": str(e)}
+    
+def download_audio_from_url(url: str, quiz_id: int = None) -> dict:
     """
     Lädt Audio über yt-dlp herunter und gibt Metadaten zurück.
-    
-    Args:
-        url (str): Die Video-URL.
-        output_dir (str): Zielverzeichnis (default: /tmp).
-        
-    Returns:
-        dict: Enthält 'filepath', 'title' und 'success' (bool).
     """
     if not url:
         return {"success": False, "error": "No URL provided."}
 
-    # Sicherstellen, dass der Ordner existiert
+    # Pfad absolut zum Projekt (nicht relativ!)
+    output_dir = os.path.join(os.getcwd(), "quiz_app", "media")
     os.makedirs(output_dir, exist_ok=True)
 
-    # Dynamisches Ausgabeformat
-    outtmpl = os.path.join(output_dir, "%(title)s.%(ext)s")
+    # Einfacher, sicherer Dateiname (keine Sonderzeichen)
+    filename = f"quiz_{quiz_id or 'temp'}_%(id)s.%(ext)s"
+    outtmpl = os.path.join(output_dir, filename)
 
-    # yt-dlp Optionen zusammenbauen
-    ydl_opts = {**settings.YDL_BASE_OPTS, "outtmpl": outtmpl}
+    ydl_opts = {
+        **settings.YDL_BASE_OPTS,
+        "outtmpl": outtmpl,
+    }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            filepath = ydl.prepare_filename(info)
+            filepath = os.path.normpath(ydl.prepare_filename(info))
+
+        # 🔍 Debug-Log
+        print(f"✅ Download erfolgreich: {filepath}")
+        print(f"📂 Datei existiert nach Download? {os.path.exists(filepath)}")
 
         return {
             "success": True,
@@ -43,16 +120,34 @@ def download_audio_from_url(url: str, output_dir: str = "/tmp") -> dict:
         }
 
     except Exception as e:
+        print(f"❌ Download-Fehler: {e}")
         return {"success": False, "error": str(e)}
-    
+
 
 def run_whisper_transcription(audio_path: str) -> str:
     """
     Führt Whisper lokal aus (z. B. small oder medium Modell).
     """
+    audio_path = os.path.abspath(audio_path)
+    print(f"🎧 Transkription startet für: {audio_path}")
+    print(f"📂 Existiert Datei? {os.path.exists(audio_path)}")
+
+    # # --- In WAV konvertieren ---
+    # wav_path = os.path.splitext(audio_path)[0] + ".wav"
+    # try:
+    #     subprocess.run(
+    #         ["ffmpeg", "-y", "-i", audio_path, "-ar", "16000", "-ac", "1", wav_path],
+    #         check=True
+    #     )
+    #     print(f"🎵 Umgewandelt in WAV: {wav_path}")
+    #     audio_path = wav_path
+    # except Exception as e:
+    #     print(f"⚠️ Fehler bei der WAV-Konvertierung: {e}")
+    #     return ""
+
     try:
         model = whisper.load_model("small")
-        result = model.transcribe(audio_path, language="de")
+        result = model.transcribe(audio_path, language="de") #Hier kommt der Fehler
         return result["text"]
     except Exception as e:
         print(f"Whisper-Fehler: {e}")
@@ -118,7 +213,7 @@ def generate_quiz_with_gemini(transcript: str) -> dict:
 
 def generate_quiz_from_video(quiz):
     # 1️⃣ Audio laden
-    result = download_audio_from_url(quiz.url)
+    result = download_audio_from_url(quiz.url, quiz_id=quiz.id)
     if not result["success"]:
         quiz.title = "Fehler beim Download"
         quiz.save()

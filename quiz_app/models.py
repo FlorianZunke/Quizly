@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 class Quiz(models.Model):
@@ -7,6 +8,7 @@ class Quiz(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     url = models.URLField()
+    owner = models.ForeignKey( settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quizzes", null=True, blank=True)
 
 class Question(models.Model):
     id = models.AutoField(primary_key=True)
