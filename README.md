@@ -1,0 +1,253 @@
+# 🎯 Quizly
+
+Quizly is a Django + Django REST Framework project that generates multiple-choice quizzes from a video URL. It downloads the video's audio, transcribes it locally using Whisper, sends the transcript to an LLM (Gemini or other configured model) to produce structured quiz data, and stores the quiz and questions in a database.
+
+This README explains how to set up the project, run it on Windows and macOS, and covers important runtime requirements (ffmpeg, Whisper models, API keys, JWT usage, and background-processing considerations).
+
+---
+
+## ✨ Features
+
+- Create a quiz by POSTing a video URL. The backend downloads audio, transcribes it and generates multiple-choice questions.
+- JWT authentication (Simple JWT) for protected endpoints.
+- List quizzes of the authenticated user.
+- CRUD on quizzes with owner-based permissions.
+- Questions are stored as nested objects and returned in API responses.
+
+---
+
+## 📁 Repository Layout
+
+- `manage.py` — Django CLI entrypoint  
+- `core/` — Django project and settings  
+- `quiz_app/` — main app containing models, API and generation utils  
+  - `quiz_app/api/serializers.py` — API serializers  
+  - `quiz_app/api/views.py` — API views  
+  - `quiz_app/api/utils.py` — audio download, transcription and LLM integration  
+  - `quiz_app/models.py` — `Quiz` and `Question` models  
+- `auth_app/` — authentication / registration API and serializers  
+- `requirements.txt` — Python dependencies
+
+---
+
+## 🔧 Requirements
+
+- Python 3.10+  
+- pip  
+- ffmpeg (required by yt-dlp / Whisper)  
+- Internet access for downloading video/audio and calling the LLM API  
+- An API key for the Gemini (or other LLM) client used in `quiz_app/api/utils.py`
+
+Notes on external tools:
+
+- `yt-dlp`: used to download the audio track from video URLs.  
+- `whisper`: local transcription (the code calls `whisper.load_model("small")` by default).
+
+On Windows, download ffmpeg and add `ffmpeg.exe` to your PATH. On macOS, install ffmpeg with Homebrew: `brew install ffmpeg`.
+
+---
+
+## 🔐 Environment Variables
+
+Create a `.env` file in the project root or set environment variables in your system. Important variables used by the project:
+
+- `api_key` — API key for the Gemini (or equivalent) client used in `quiz_app/api/utils.py`.
+
+Example `.env`:
+
+The project loads `.env` in `quiz_app/api/utils.py` using `python-dotenv`.
+
+---
+
+## 💻 Installation
+
+### Windows
+
+1. Clone the repo and open PowerShell in the project root.  
+2. Create and activate a virtual environment:
+
+
+```powershell
+python -m venv env
+.\env\Scripts\Activate
+```
+
+3. Install dependencies:
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+4. Setup database and create admin user:
+```powershell
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+5. Run the development server:
+```powershell
+python manage.py runserver
+```
+
+
+### macOS
+
+1. Clone the repo and open Terminal in the project root.
+2. Create and activate a virtual environment:
+```bash
+python3 -m venv env
+source env/bin/activate
+```
+
+3. Install dependencies:
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+4. Install ffmpeg:
+```bash
+brew install ffmpeg
+```
+
+5. Setup database and create admin user:
+```bash
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+6. Run the development server:
+```bash
+python manage.py runserver
+```
+
+
+## 🚀 Using the API
+
+### Authentication
+The project uses Simple JWT for authentication. Token endpoints are available in `auth_app` (see `auth_app/api/urls.py`). The default `REST_FRAMEWORK` configuration uses JWT authentication.
+
+### Endpoints
+
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| POST | `/api/quizzes/` | Create a new quiz | Required |
+| GET | `/api/quizzes/` | List user's quizzes | Required |
+| GET | `/api/quizzes/<pk>/` | Get quiz details | Required (owner only) |
+
+### Example Requests
+
+#### Create a Quiz
+```bash
+curl -X POST http://127.0.0.1:8000/api/quizzes/ \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.youtube.com/watch?v=..."}'
+```
+
+### Response Format
+
+#### Success (HTTP 201)
+```json
+{
+    "id": 1,
+    "video_url": "https://...",
+    "title": "Quiz Title",
+    "description": "Quiz Description",
+    "timestamps": [...],
+    "questions": [
+        {
+            "text": "Question text",
+            "options": [...],
+            "correct_answer": "..."
+        }
+    ]
+}
+```
+
+#### Error (HTTP 400)
+```json
+{
+    "error": "Error message",
+    "detail": "Detailed error description"
+}
+```
+
+### Important Notes
+- The `url` field is write-only when creating a quiz
+- The response includes `video_url` (read-only), `title`, `description`, `timestamps` and nested `questions`
+- All endpoints require a valid JWT token in the `Authorization: Bearer <token>` header
+
+## 📝 Implementation Notes and Caveats
+
+### Generation Pipeline
+- Currently runs synchronously (download → transcribe → LLM)
+- Can block HTTP requests for extended periods
+- Recommended: Move to background worker (Celery + Redis) for production
+- Should return HTTP 202 Accepted immediately in production
+
+### Resource Management
+- Temporary audio files are automatically deleted after transcription
+- Whisper transcription is compute-intensive
+- LLM API calls require adequate quotas and network connectivity
+- Monitor system resources during operation
+
+### Data Integrity
+- Uses `generate_quiz_data_from_video` helper for validation
+- Quiz creation wrapped in `transaction.atomic()` block
+- Prevents partial/incomplete quiz insertions
+- Validates LLM output before saving
+
+
+## ❗ Troubleshooting
+
+### Common Issues and Solutions
+
+#### Authentication Problems (HTTP 401)
+- **Problem**: Unauthorized access errors
+- **Solution**: 
+  - Verify JWT token is included in header: `Authorization: Bearer <token>`
+  - Check token expiration
+  - Consider configuring cookie-based JWT auth if needed
+
+#### Quiz Creation Errors (HTTP 400)
+- **Problem**: Bad Request during quiz creation
+- **Solution**: Check server logs for specific errors:
+  - Video download failures
+  - Empty transcriptions
+  - Invalid LLM responses
+  - Malformed video URLs
+
+#### FFmpeg Issues
+- **Problem**: FFmpeg-related errors
+- **Solution**:
+  - Verify ffmpeg is installed
+  - Ensure ffmpeg is in system PATH
+  - Windows: Check `ffmpeg.exe` location
+  - macOS: Verify Homebrew installation
+
+## 🔜 Next Steps / Improvements
+
+### Performance Optimization
+- [ ] Implement background processing with Celery + Redis
+- [ ] Add job status monitoring endpoint
+- [ ] Implement rate limiting system
+- [ ] Add per-user generation quotas
+
+### Monitoring & Reliability
+- [ ] Enhanced error logging system
+- [ ] Pipeline monitoring dashboard
+- [ ] Automated health checks
+- [ ] System resource monitoring
+
+### Testing & Documentation
+- [ ] Add unit tests for quiz generation
+- [ ] Integration tests for API endpoints
+- [ ] Pipeline component tests
+- [ ] Create README-dev.md with:
+  - Local Whisper setup guide
+  - LLM integration testing
+  - Sample transcripts
+  - Debugging procedures
