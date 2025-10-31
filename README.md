@@ -251,3 +251,26 @@ curl -X POST http://127.0.0.1:8000/api/quizzes/ \
   - LLM integration testing
   - Sample transcripts
   - Debugging procedures
+
+#### How to run tests
+
+Run the Django test suite from the project root.
+
+PowerShell (Windows):
+```powershell
+# from project root
+python manage.py test
+```
+
+macOS / Linux (bash):
+```bash
+python manage.py test
+```
+
+Run a single app's tests:
+```bash
+python manage.py test quiz_app
+python manage.py test auth_app
+```
+
+Add `-v 2` for more verbose output, or use `--failfast` to stop on first failure.
