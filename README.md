@@ -52,7 +52,21 @@ On Windows, download ffmpeg and add `ffmpeg.exe` to your PATH. On macOS, install
 
 Create a `.env` file in the project root or set environment variables in your system. Important variables used by the project:
 
-- `api_key` — API key for the Gemini (or equivalent) client used in `quiz_app/api/utils.py`.
+- `API_KEY` — API key for the Gemini (or equivalent) client used in `quiz_app/api/utils.py`.
+- `SECRET_KEY` — Django SECRET_KEY (for local development you may set a simple value).
+
+There is a `.env.template` file in the project root that lists all required environment variables with example values. Copy and edit that template to create your actual `.env` file:
+
+- Unix / macOS / WSL:
+  ```bash
+  cp .env.template .env
+  ```
+- Windows PowerShell:
+  ```powershell
+  Copy-Item .env.template .env
+  ```
+
+After copying, open `.env` and fill in your API keys and any other values.
 
 Example `.env`:
 
@@ -129,6 +143,29 @@ python manage.py runserver
 
 ### Authentication
 The project uses Simple JWT for authentication. Token endpoints are available in `auth_app` (see `auth_app/api/urls.py`). The default `REST_FRAMEWORK` configuration uses JWT authentication.
+
+<!-- Added: CORS / Request headers guidance -->
+#### CORS / Required Request Headers
+- Server (Django + django-cors-headers) typical settings:
+  - CORS_ALLOWED_ORIGINS: ["http://127.0.0.1:5500", "http://localhost:5500"]
+  - CORS_ALLOW_CREDENTIALS: True
+  - CORS_ALLOW_HEADERS should include: "authorization", "content-type", "x-csrftoken", "x-requested-with"
+  - Optional: CSRF_TRUSTED_ORIGINS for cookie-based auth
+
+- Browser client: always send the Authorization header and, when using cookie-based auth, include credentials.
+  Example (fetch):
+  ```javascript
+  fetch('http://127.0.0.1:8000/api/quizzes/', {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + ACCESS_TOKEN, // genau: "Bearer <token>"
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include' // nur nötig, wenn Cookies verwendet werden
+  });
+  ```
+
+- Important: For "non-simple" requests, browsers send an OPTIONS (preflight) request. The server must respond correctly to OPTIONS requests (returning proper CORS headers), otherwise the client will encounter CORS/401/403 errors.
 
 ### Endpoints
 
@@ -209,9 +246,14 @@ curl -X POST http://127.0.0.1:8000/api/quizzes/ \
 #### Authentication Problems (HTTP 401)
 - **Problem**: Unauthorized access errors
 - **Solution**: 
-  - Verify JWT token is included in header: `Authorization: Bearer <token>`
+  - Verify JWT token is included in header: `Authorization: Bearer <ACCESS_TOKEN>`
   - Check token expiration
   - Consider configuring cookie-based JWT auth if needed
+  - CORS-specific checks:
+    - Ensure the browser request sends the Authorization header (inspect Network tab → Request Headers).
+    - Verify server returns Access-Control-Allow-Origin (must match origin) and Access-Control-Allow-Credentials if credentials are used.
+    - Ensure OPTIONS preflight returns HTTP 200 with proper CORS headers (Access-Control-Allow-Methods, Access-Control-Allow-Headers).
+    - If using cookies, confirm CSRF token handling and add your frontend origin to CSRF_TRUSTED_ORIGINS.
 
 #### Quiz Creation Errors (HTTP 400)
 - **Problem**: Bad Request during quiz creation

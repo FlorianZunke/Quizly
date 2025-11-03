@@ -3,13 +3,10 @@ import yt_dlp
 import whisper
 from django.conf import settings
 from google import genai
-from dotenv import load_dotenv
 import json
 
 from core.settings import YDL_BASE_OPTS
 from quiz_app.models import Question
-
-load_dotenv()
 
 def download_audio_from_url(url: str, quiz_id: int = None) -> dict:
     """
@@ -91,8 +88,8 @@ def generate_quiz_with_gemini(transcript: str) -> dict:
     {transcript[:12000]}  # Limit length to avoid prompt being too large
     """
 
-    api_key = os.getenv('api_key')
-    client = genai.Client(api_key=api_key)
+    API_KEY = settings.API_KEY
+    client = genai.Client(api_key=API_KEY)
 
     try:
         response = client.models.generate_content(

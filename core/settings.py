@@ -15,18 +15,17 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-load_dotenv()
-api_key = os.getenv('Google_API_key')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--ji=%5sare^8-vhe4mwrtx%4bx4n6m@2&l!48cx5_jkjoh#yu^'
+SECRET_KEY = os.getenv('SECRET_KEY')
+API_KEY = os.getenv('API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
