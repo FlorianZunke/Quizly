@@ -5,7 +5,7 @@ from django.conf import settings
 from google import genai
 from dotenv import load_dotenv
 import json
- 
+
 from core.settings import YDL_BASE_OPTS
 from quiz_app.models import Question
 

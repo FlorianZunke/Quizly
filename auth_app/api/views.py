@@ -107,7 +107,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             value=access_token,
             httponly=True,
             secure=True,
-            samesite="None"
+            samesite="Lax"
         )
 
         return response

@@ -24,6 +24,7 @@ This README explains how to set up the project, run it on Windows and macOS, and
   - `quiz_app/api/serializers.py` — API serializers  
   - `quiz_app/api/views.py` — API views  
   - `quiz_app/api/utils.py` — audio download, transcription and LLM integration  
+  - `quiz_app/api/authentication.py` — handle JWTCOOKIES
   - `quiz_app/models.py` — `Quiz` and `Question` models  
 - `auth_app/` — authentication / registration API and serializers  
 - `requirements.txt` — Python dependencies

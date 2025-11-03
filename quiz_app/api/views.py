@@ -1,5 +1,7 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from quiz_app.api.serializers import QuizSerializer, QuizDetailSerializer
 from quiz_app.models import Quiz
@@ -10,8 +12,8 @@ class QuizListCreateView(generics.ListCreateAPIView):
     """
     View to list and create quizzes for the authenticated user.
     """
-    serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
+    serializer_class = QuizSerializer
 
     def get_queryset(self):
         """
